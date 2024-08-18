@@ -1,10 +1,10 @@
 {
-  "name": "asset-uploader-frontend",
-  "version": "0.1.0",
+  "name": "asset-uploader",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3010",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -31,6 +31,5 @@
     "prettier-plugin-tailwindcss": "^0.6.6",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
-  },
-  "packageManager": "pnpm@9.4.0"
+  }
 }

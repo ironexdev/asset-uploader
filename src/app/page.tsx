@@ -24,23 +24,25 @@ export default function Home() {
 
   return (
     <main className="flex w-full justify-center py-[20px]">
-      <div className="flex w-[1680px] justify-between">
-        <div className="w-[400px]">
-          <ImageOptimizeForm
-            key={resetKey} // Reset form when key changes
-            setPreviewUrl={setPreviewUrl}
-            setImageInfo={setImageInfo}
-          />
-        </div>
-        <div className="w-[400px]">
-          <ImageUploadForm
-            previewUrl={previewUrl}
-            imageInfo={imageInfo}
-            onReset={handleReset} // Call handleReset after upload
-          />
-        </div>
-        <div className="w-[800px]">
-          <ObjectList />
+      <div className="flex w-full max-w-[1680px] justify-center px-[20px]">
+        <div className="flex w-full max-w-[1640px] gap-[20px]">
+          <div className="w-[400px] flex-shrink-0">
+            <ImageOptimizeForm
+              key={resetKey} // Reset form when key changes
+              setPreviewUrl={setPreviewUrl}
+              setImageInfo={setImageInfo}
+            />
+          </div>
+          <div className="w-[400px] flex-shrink-0">
+            <ImageUploadForm
+              previewUrl={previewUrl}
+              imageInfo={imageInfo}
+              onReset={handleReset} // Call handleReset after upload
+            />
+          </div>
+          <div className="min-w-[400px] max-w-[800px] flex-grow">
+            <ObjectList />
+          </div>
         </div>
       </div>
     </main>

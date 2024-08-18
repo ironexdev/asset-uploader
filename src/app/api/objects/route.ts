@@ -19,7 +19,6 @@ export async function GET() {
     };
 
     const data = await s3Client.send(new ListObjectsV2Command(params));
-    console.log(data);
     const objects = data.Contents
       ? data.Contents.map((item) => {
           const sizeInKB =
