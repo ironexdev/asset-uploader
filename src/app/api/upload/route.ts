@@ -11,25 +11,40 @@ const s3Client = new S3Client({
 
 export async function POST(request: Request) {
   const formData = await request.formData();
-  const file = formData.get("image") as Blob;
-  const imageName = formData.get("imageName") as string;
+  const files = formData.getAll("image") as Blob[];
+  const imageNames = formData.getAll("imageName") as string[];
+  const folder = formData.get("folder") as string;
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  if (!files.length || !imageNames.length || !folder) {
+    return new NextResponse("Missing required fields", { status: 400 });
+  }
 
-  const uploadParams = {
-    Bucket: process.env.AWS_S3_BUCKET_NAME!,
-    Key: `assets/images/${imageName}`,
-    Body: buffer,
-    ContentType: "image/webp",
-    CacheControl: "max-age=31536000",
-  };
+  const uploadedFiles: { imageName: string; imageUrl: string }[] = [];
 
-  await s3Client.send(new PutObjectCommand(uploadParams));
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const imageName = imageNames[i];
 
-  const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/assets/images/${imageName}`;
+    if (!file || !imageName) {
+      continue; // Skip if either file or imageName is undefined
+    }
 
-  return NextResponse.json({
-    imageName: `assets/images/${imageName}`,
-    imageUrl,
-  });
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const uploadParams = {
+      Bucket: process.env.AWS_S3_BUCKET_NAME!,
+      Key: `assets/images/${folder}/${imageName}`,
+      Body: buffer,
+      ContentType: file.type,
+      CacheControl: "max-age=31536000",
+    };
+
+    await s3Client.send(new PutObjectCommand(uploadParams));
+
+    const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/assets/images/${folder}/${imageName}`;
+
+    uploadedFiles.push({ imageName: `${folder}/${imageName}`, imageUrl });
+  }
+
+  return NextResponse.json(uploadedFiles);
 }
