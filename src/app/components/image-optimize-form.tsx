@@ -45,6 +45,9 @@ export default function ImageOptimizeForm({
       aspectRatio: number;
     }[]
   >([]);
+  const [originalImageNames, setLocalOriginalImageNames] = useState<string[]>(
+    [],
+  );
   const [isQualityEnabled, setIsQualityEnabled] = useState(true);
   const [isResizeEnabled, setIsResizeEnabled] = useState(true);
   const [outputFormat, setOutputFormat] = useState<string>("webp");
@@ -60,6 +63,7 @@ export default function ImageOptimizeForm({
         format: string;
         aspectRatio: number;
       }[] = [];
+      const originalNamesTemp: string[] = [];
 
       files.forEach((file, index) => {
         const reader = new FileReader();
@@ -77,11 +81,13 @@ export default function ImageOptimizeForm({
             };
             previewsTemp[index] = reader.result as string;
             imageInfosTemp[index] = imageInfoData;
+            originalNamesTemp[index] = file.name;
 
             // Only update state when all files are processed
             if (previewsTemp.length === files.length) {
               setPreviews([...previewsTemp]);
               setLocalImageInfos([...imageInfosTemp]);
+              setLocalOriginalImageNames([...originalNamesTemp]);
             }
           };
         };
@@ -90,6 +96,7 @@ export default function ImageOptimizeForm({
     } else {
       setPreviews([]);
       setLocalImageInfos([]);
+      setLocalOriginalImageNames([]);
     }
   }, [files]);
 
@@ -104,6 +111,47 @@ export default function ImageOptimizeForm({
       setFiles(selectedFiles); // Set the newly selected files
       onResetUploadForm(false); // Reset related states when new files are selected
     }
+  };
+
+  const handleClone = () => {
+    if (selectedImageIndex < 0 || selectedImageIndex >= files.length) return;
+
+    const originalFile = files[selectedImageIndex]!;
+    const clonedFile = new File(
+      [originalFile],
+      generateCloneName(originalFile.name),
+      {
+        type: originalFile.type,
+        lastModified: originalFile.lastModified,
+      },
+    );
+
+    const updatedFiles = [...files, clonedFile];
+    setFiles(updatedFiles);
+
+    const newPreviewUrl = previews[selectedImageIndex]!;
+    const newImageInfo = { ...imageInfos[selectedImageIndex]! };
+    const newOriginalName = clonedFile.name;
+
+    setPreviews([...previews, newPreviewUrl]);
+    setLocalImageInfos([...imageInfos, newImageInfo]);
+    setLocalOriginalImageNames([...originalImageNames, newOriginalName]);
+
+    setSelectedImageIndex(updatedFiles.length - 1); // Select the cloned image
+  };
+
+  const generateCloneName = (originalName: string) => {
+    const extension = originalName.slice(originalName.lastIndexOf("."));
+    const baseName = originalName.slice(0, originalName.lastIndexOf("."));
+    let cloneCount = 1;
+
+    let newName = `${baseName}-${cloneCount}${extension}`;
+    while (originalImageNames.includes(newName)) {
+      cloneCount++;
+      newName = `${baseName}-${cloneCount}${extension}`;
+    }
+
+    return newName;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -216,6 +264,13 @@ export default function ImageOptimizeForm({
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="mt-2 w-full rounded bg-yellow-500 py-2 text-white hover:bg-yellow-600"
+            onClick={handleClone}
+          >
+            Clone
+          </button>
         </div>
       )}
 

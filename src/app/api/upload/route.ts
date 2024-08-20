@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     const uploadParams = {
       Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Key: `assets/images/${folder}/${imageName}`,
+      Key: `assets/${folder}/${imageName}`,
       Body: buffer,
       ContentType: file.type,
       CacheControl: "max-age=31536000",
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     await s3Client.send(new PutObjectCommand(uploadParams));
 
-    const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/assets/images/${folder}/${imageName}`;
+    const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/assets/${folder}/${imageName}`;
 
     uploadedFiles.push({ imageName: `${folder}/${imageName}`, imageUrl });
   }

@@ -21,11 +21,12 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
             "Action": [
                 "s3:GetObject",
                 "s3:PutObject",
+                "s3:DeleteObject",
                 "s3:ListBucket"
             ],
             "Resource": [
-                "arn:aws:s3:::your-bucket-name",
-                "arn:aws:s3:::your-bucket-name/*"
+                "arn:aws:s3:::blazing-peon-images",
+                "arn:aws:s3:::blazing-peon-images/*"
             ]
         }
     ]
@@ -47,5 +48,5 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
 3) **Fill in quality and size** <small>(at least height or width has to be filled in, Sharp will calculate the other parameter automatically)</small>
 4) **Click optimize** <small>-> optimized image will be previewed in the Upload Form</small>
 - <small>#2 Upload Form</small>
-5) **Fill in the new image name** (technically S3 namespace) <small>-> it will be automatically prefixed with assets/images/</small>
+5) **Fill in the new image name** (technically S3 namespace) <small>-> it will be automatically prefixed with assets/</small>
 6) **Click upload** <small>-> image will be uploaded to S3 bucket and Cloudfront link will be returned</small>

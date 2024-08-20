@@ -15,7 +15,7 @@ export async function GET() {
   try {
     const params = {
       Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Prefix: "assets/images/",
+      Prefix: "assets/",
     };
 
     const data = await s3Client.send(new ListObjectsV2Command(params));

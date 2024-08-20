@@ -12,16 +12,19 @@ interface S3ObjectData {
   objects: S3Object[];
 }
 
+const AWS_S3_REGION = "us-east-1"; // Replace this with the actual region from your environment variables
+
 export default function ObjectList() {
   const [objects, setObjects] = useState<S3Object[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<{
-    column: "name" | "size" | "lastModified";
+    column: "s3Object" | "cloudfrontUrl" | "size" | "lastModified";
     order: "asc" | "desc";
   }>({ column: "lastModified", order: "desc" });
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
+  const itemsPerPage = 100;
 
   useEffect(() => {
     const fetchObjects = async () => {
@@ -55,7 +58,9 @@ export default function ObjectList() {
     setCurrentPage(1);
   };
 
-  const handleSort = (column: "name" | "size" | "lastModified") => {
+  const handleSort = (
+    column: "s3Object" | "cloudfrontUrl" | "size" | "lastModified",
+  ) => {
     setSortOrder((prevOrder) => ({
       column,
       order:
@@ -63,6 +68,48 @@ export default function ObjectList() {
           ? "desc"
           : "asc",
     }));
+  };
+
+  const handleCheckboxChange = (key: string) => {
+    setSelectedObjects((prevSelected) =>
+      prevSelected.includes(key)
+        ? prevSelected.filter((k) => k !== key)
+        : [...prevSelected, key],
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete the selected objects? This action cannot be undone.",
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/delete-objects", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ keys: selectedObjects }),
+      });
+
+      if (!res.ok) {
+        const errorMessage = `Error deleting objects: ${res.status} ${res.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      toast.success("Selected objects deleted successfully!");
+      setObjects((prevObjects) =>
+        prevObjects.filter((object) => !selectedObjects.includes(object.key)),
+      );
+      setSelectedObjects([]);
+    } catch (err) {
+      const message = (err as Error).message;
+      toast.error(message);
+    }
   };
 
   const filteredObjects = objects.filter((object) => {
@@ -76,10 +123,14 @@ export default function ObjectList() {
   });
 
   const sortedObjects = [...filteredObjects].sort((a, b) => {
-    if (sortOrder.column === "name") {
+    if (sortOrder.column === "s3Object") {
       return sortOrder.order === "asc"
         ? a.key.localeCompare(b.key)
         : b.key.localeCompare(a.key);
+    } else if (sortOrder.column === "cloudfrontUrl") {
+      return sortOrder.order === "asc"
+        ? a.url.localeCompare(b.url)
+        : b.url.localeCompare(a.url);
     } else if (sortOrder.column === "size") {
       return sortOrder.order === "asc"
         ? a.sizeInKB - b.sizeInKB
@@ -106,15 +157,24 @@ export default function ObjectList() {
         const segments = object.key.split("/");
         if (segments[0] === "assets") {
           if (segments[1] === "images" && segments.length > 2) {
-            return `assets/images/${segments[2]}`;
+            return `assets/${segments[2]}`;
           } else if (segments[1] !== "images") {
-            return null; // Skip the "assets" folder itself
+            return null;
           }
         }
         return segments[0];
       }),
     ),
   ).filter((folder) => folder !== null);
+
+  const extractPath = (url: string) => {
+    const match = /https?:\/\/[^\/]+(\/.*)$/.exec(url);
+    return match ? match[1] : url;
+  };
+
+  const generateS3Link = (key: string) => {
+    return `https://${AWS_S3_REGION}.console.aws.amazon.com/s3/object/blazing-peon-images?region=${AWS_S3_REGION}&bucketType=general&prefix=${key}`;
+  };
 
   return (
     <div className="rounded-lg border-[1px] border-[#EEEEEE] bg-white p-4">
@@ -129,7 +189,7 @@ export default function ObjectList() {
           className="rounded border p-2"
         />
         <select
-          value={selectedFolder || ""}
+          value={selectedFolder ?? ""}
           onChange={handleFolderChange}
           className="ml-2 rounded border p-2"
         >
@@ -143,63 +203,116 @@ export default function ObjectList() {
       </div>
 
       {paginatedObjects.length > 0 ? (
-        <table className="mt-4 w-full table-auto border-collapse">
-          <thead>
-            <tr className="text-left text-sm font-medium text-gray-700">
-              <th
-                className="cursor-pointer pb-2"
-                onClick={() => handleSort("name")}
-              >
-                Name{" "}
-                {sortOrder.column === "name"
-                  ? sortOrder.order === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-              <th
-                className="w-20 cursor-pointer pb-2"
-                onClick={() => handleSort("size")}
-              >
-                Size{" "}
-                {sortOrder.column === "size"
-                  ? sortOrder.order === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-              <th
-                className="w-32 cursor-pointer pb-2"
-                onClick={() => handleSort("lastModified")}
-              >
-                Last Modified{" "}
-                {sortOrder.column === "lastModified"
-                  ? sortOrder.order === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedObjects.map((object, index) => (
-              <tr key={index} className="text-sm text-gray-700">
-                <td className="border-t py-2">
-                  <a
-                    href={object.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
-                  >
-                    {object.key}
-                  </a>
-                </td>
-                <td className="w-20 border-t py-2">{object.sizeInKB} KB</td>
-                <td className="w-32 border-t py-2">{object.lastModified}</td>
+        <>
+          <table className="mt-4 w-full table-auto border-collapse">
+            <thead>
+              <tr className="text-left text-sm font-medium text-gray-700">
+                <th className="pb-2">
+                  <input
+                    type="checkbox"
+                    onChange={(e) =>
+                      setSelectedObjects(
+                        e.target.checked
+                          ? paginatedObjects.map((object) => object.key)
+                          : [],
+                      )
+                    }
+                    checked={
+                      selectedObjects.length === paginatedObjects.length &&
+                      paginatedObjects.length > 0
+                    }
+                  />
+                </th>
+                <th
+                  className="cursor-pointer pb-2"
+                  onClick={() => handleSort("cloudfrontUrl")}
+                >
+                  Cloudfront URL{" "}
+                  {sortOrder.column === "cloudfrontUrl"
+                    ? sortOrder.order === "asc"
+                      ? "▲"
+                      : "▼"
+                    : ""}
+                </th>
+                <th
+                  className="cursor-pointer pb-2"
+                  onClick={() => handleSort("s3Object")}
+                >
+                  S3 Object{" "}
+                  {sortOrder.column === "s3Object"
+                    ? sortOrder.order === "asc"
+                      ? "▲"
+                      : "▼"
+                    : ""}
+                </th>
+                <th
+                  className="w-20 cursor-pointer pb-2"
+                  onClick={() => handleSort("size")}
+                >
+                  Size{" "}
+                  {sortOrder.column === "size"
+                    ? sortOrder.order === "asc"
+                      ? "▲"
+                      : "▼"
+                    : ""}
+                </th>
+                <th
+                  className="w-32 cursor-pointer pb-2"
+                  onClick={() => handleSort("lastModified")}
+                >
+                  Last Modified{" "}
+                  {sortOrder.column === "lastModified"
+                    ? sortOrder.order === "asc"
+                      ? "▲"
+                      : "▼"
+                    : ""}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedObjects.map((object, index) => (
+                <tr key={index} className="text-sm text-gray-700">
+                  <td className="border-t py-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedObjects.includes(object.key)}
+                      onChange={() => handleCheckboxChange(object.key)}
+                    />
+                  </td>
+                  <td className="border-t py-2">
+                    <a
+                      href={object.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {extractPath(object.url)}
+                    </a>
+                  </td>
+                  <td className="border-t py-2">
+                    <a
+                      href={generateS3Link(object.key)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {object.key.split("/").pop()}
+                    </a>
+                  </td>
+                  <td className="w-20 border-t py-2">{object.sizeInKB} KB</td>
+                  <td className="w-32 border-t py-2">{object.lastModified}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button
+            onClick={handleDeleteSelected}
+            disabled={selectedObjects.length === 0}
+            className="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:bg-gray-300"
+          >
+            Delete Selected
+          </button>
+        </>
       ) : (
         <p className="mt-4 text-sm text-gray-500">No objects found.</p>
       )}

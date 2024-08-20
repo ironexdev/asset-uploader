@@ -132,7 +132,7 @@ export default function ImageUploadForm({
             )}
           <input
             type="text"
-            placeholder="Folder (S3 namespace after assets/images/)"
+            placeholder="Folder (S3 namespace after assets/)"
             value={folderName}
             required
             onChange={(e) => setFolderName(e.target.value)}
@@ -158,7 +158,7 @@ export default function ImageUploadForm({
       )}
 
       {uploadedImageUrls.length > 0 && (
-        <div className="mt-4 rounded border bg-gray-100 p-4">
+        <div className="rounded border bg-gray-100 p-4">
           <h3 className="text-md font-bold">Latest uploaded images:</h3>
           <ul>
             {uploadedImageUrls.map((url, index) => (

@@ -66,7 +66,7 @@ export default function Home() {
             </div>
           </div>
           <div className="w-[820px] py-[60px]">
-            <ObjectList />
+            <ObjectList key={resetKey} />
           </div>
         </div>
       </main>
