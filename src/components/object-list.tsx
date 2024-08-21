@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +20,9 @@ export default function ObjectList({
   className = "",
   type = "server", // default to "server"
 }: {
-  className?: "";
+  className?: string;
   type?: "server" | "storage";
 }) {
-  const [objects, setObjects] = useState<S3Object[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<{
@@ -34,27 +34,51 @@ export default function ObjectList({
   const itemsPerPage = 100;
   const s3Region = process.env.AWS_S3_REGION;
 
-  useEffect(() => {
-    const fetchObjects = async () => {
-      try {
-        const res = await fetch(`/api/objects?type=${type}`);
-        if (!res.ok) {
-          const errorMessage = `Error: ${res.status} ${res.statusText}`;
-          throw new Error(errorMessage);
-        }
-        const data = (await res.json()) as S3ObjectData;
+  const queryClient = useQueryClient();
 
-        setObjects(data.objects);
-      } catch (err) {
-        const message = (err as Error).message;
-        toast.error(message);
+  // Fetch objects using TanStack Query
+  const { data, error, isLoading } = useQuery<S3ObjectData, Error>({
+    queryKey: ["objects", type],
+    queryFn: async () => {
+      const res = await fetch(`/api/objects?type=${type}`);
+      if (!res.ok) {
+        const errorMessage = `Error: ${res.status} ${res.statusText}`;
+        throw new Error(errorMessage);
       }
-    };
+      return res.json() as Promise<S3ObjectData>;
+    },
+  });
 
-    fetchObjects().catch((err) => {
-      toast.error(`Unexpected error: ${(err as Error).message}`);
-    });
-  }, [type]);
+  const deleteMutation = useMutation({
+    mutationFn: async (keys: string[]) => {
+      const res = await fetch("/api/delete-objects", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ keys }),
+      });
+
+      if (!res.ok) {
+        const errorMessage = `Error deleting objects: ${res.status} ${res.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      return keys;
+    },
+    onSuccess: (deletedKeys) => {
+      queryClient.setQueryData<S3ObjectData>(["objects", type], (oldData) => ({
+        objects: oldData?.objects.filter(
+          (object) => !deletedKeys.includes(object.key),
+        ),
+      }));
+      toast.success("Selected objects deleted successfully!");
+      setSelectedObjects([]);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -86,39 +110,20 @@ export default function ObjectList({
     );
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete the selected objects? This action cannot be undone.",
     );
 
-    if (!confirmDelete) {
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/delete-objects", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ keys: selectedObjects }),
-      });
-
-      if (!res.ok) {
-        const errorMessage = `Error deleting objects: ${res.status} ${res.statusText}`;
-        throw new Error(errorMessage);
-      }
-
-      toast.success("Selected objects deleted successfully!");
-      setObjects((prevObjects) =>
-        prevObjects.filter((object) => !selectedObjects.includes(object.key)),
-      );
-      setSelectedObjects([]);
-    } catch (err) {
-      const message = (err as Error).message;
-      toast.error(message);
+    if (confirmDelete) {
+      deleteMutation.mutate(selectedObjects);
     }
   };
+
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  const objects = data?.objects ?? [];
 
   const filteredObjects = objects.filter((object) => {
     const matchesFolder = selectedFolder
