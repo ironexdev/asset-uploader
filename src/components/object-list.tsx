@@ -1,5 +1,8 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface S3Object {
   url: string;
@@ -12,9 +15,13 @@ interface S3ObjectData {
   objects: S3Object[];
 }
 
-const AWS_S3_REGION = "us-east-1"; // Replace this with the actual region from your environment variables
-
-export default function ObjectList() {
+export default function ObjectList({
+  className = "",
+  type = "server", // default to "server"
+}: {
+  className?: "";
+  type?: "server" | "storage";
+}) {
   const [objects, setObjects] = useState<S3Object[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -25,11 +32,12 @@ export default function ObjectList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const itemsPerPage = 100;
+  const s3Region = process.env.AWS_S3_REGION;
 
   useEffect(() => {
     const fetchObjects = async () => {
       try {
-        const res = await fetch("/api/objects");
+        const res = await fetch(`/api/objects?type=${type}`);
         if (!res.ok) {
           const errorMessage = `Error: ${res.status} ${res.statusText}`;
           throw new Error(errorMessage);
@@ -46,7 +54,7 @@ export default function ObjectList() {
     fetchObjects().catch((err) => {
       toast.error(`Unexpected error: ${(err as Error).message}`);
     });
-  }, []);
+  }, [type]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -173,25 +181,23 @@ export default function ObjectList() {
   };
 
   const generateS3Link = (key: string) => {
-    return `https://${AWS_S3_REGION}.console.aws.amazon.com/s3/object/blazing-peon-images?region=${AWS_S3_REGION}&bucketType=general&prefix=${key}`;
+    return `https://${s3Region}.console.aws.amazon.com/s3/object/blazing-peon-images?region=${s3Region}&bucketType=general&prefix=${key}`;
   };
 
   return (
-    <div className="rounded-lg border-[1px] border-[#EEEEEE] bg-white p-4">
-      <h2 className="text-lg font-bold">S3 Object List</h2>
-
+    <div className={cn("", className)}>
       <div className="mt-4 flex justify-between">
         <input
           type="text"
           placeholder="Search..."
           value={searchQuery}
           onChange={handleSearch}
-          className="rounded border p-2"
+          className="rounded border border-border bg-inputBg p-2"
         />
         <select
           value={selectedFolder ?? ""}
           onChange={handleFolderChange}
-          className="ml-2 rounded border p-2"
+          className="ml-2 rounded border border-border bg-inputBg p-2"
         >
           <option value="">All Folders</option>
           {uniqueFolders.map((folder, index) => (
@@ -206,8 +212,8 @@ export default function ObjectList() {
         <>
           <table className="mt-4 w-full table-auto border-collapse">
             <thead>
-              <tr className="text-left text-sm font-medium text-gray-700">
-                <th className="pb-2">
+              <tr className="text-left font-medium text-gray-700">
+                <th className="w-[30px] pb-2">
                   <input
                     type="checkbox"
                     onChange={(e) =>
@@ -223,19 +229,21 @@ export default function ObjectList() {
                     }
                   />
                 </th>
+                {type === "server" && (
+                  <th
+                    className="cursor-pointer pb-2 text-textPrimary"
+                    onClick={() => handleSort("cloudfrontUrl")}
+                  >
+                    Cloudfront URL{" "}
+                    {sortOrder.column === "cloudfrontUrl"
+                      ? sortOrder.order === "asc"
+                        ? "▲"
+                        : "▼"
+                      : ""}
+                  </th>
+                )}
                 <th
-                  className="cursor-pointer pb-2"
-                  onClick={() => handleSort("cloudfrontUrl")}
-                >
-                  Cloudfront URL{" "}
-                  {sortOrder.column === "cloudfrontUrl"
-                    ? sortOrder.order === "asc"
-                      ? "▲"
-                      : "▼"
-                    : ""}
-                </th>
-                <th
-                  className="cursor-pointer pb-2"
+                  className="cursor-pointer pb-2 text-textPrimary"
                   onClick={() => handleSort("s3Object")}
                 >
                   S3 Object{" "}
@@ -246,7 +254,7 @@ export default function ObjectList() {
                     : ""}
                 </th>
                 <th
-                  className="w-20 cursor-pointer pb-2"
+                  className="w-[80px] cursor-pointer pb-2 text-textPrimary"
                   onClick={() => handleSort("size")}
                 >
                   Size{" "}
@@ -257,7 +265,7 @@ export default function ObjectList() {
                     : ""}
                 </th>
                 <th
-                  className="w-32 cursor-pointer pb-2"
+                  className="w-[150px] cursor-pointer pb-2 text-right text-textPrimary"
                   onClick={() => handleSort("lastModified")}
                 >
                   Last Modified{" "}
@@ -271,36 +279,42 @@ export default function ObjectList() {
             </thead>
             <tbody>
               {paginatedObjects.map((object, index) => (
-                <tr key={index} className="text-sm text-gray-700">
-                  <td className="border-t py-2">
+                <tr key={index} className="text-gray-700">
+                  <td className="border-t border-border py-2">
                     <input
                       type="checkbox"
                       checked={selectedObjects.includes(object.key)}
                       onChange={() => handleCheckboxChange(object.key)}
                     />
                   </td>
-                  <td className="border-t py-2">
-                    <a
-                      href={object.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      {extractPath(object.url)}
-                    </a>
-                  </td>
-                  <td className="border-t py-2">
+                  {type === "server" && (
+                    <td className="border-t border-border py-2">
+                      <a
+                        href={object.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-link hover:underline"
+                      >
+                        {extractPath(object.url)}
+                      </a>
+                    </td>
+                  )}
+                  <td className="border-t border-border py-2">
                     <a
                       href={generateS3Link(object.key)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
+                      className="text-link text-blue-500 hover:underline"
                     >
                       {object.key.split("/").pop()}
                     </a>
                   </td>
-                  <td className="w-20 border-t py-2">{object.sizeInKB} KB</td>
-                  <td className="w-32 border-t py-2">{object.lastModified}</td>
+                  <td className="border-t border-border py-2 text-textPrimary">
+                    {object.sizeInKB} KB
+                  </td>
+                  <td className="border-t border-border py-2 text-right text-textPrimary">
+                    {object.lastModified}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -308,13 +322,13 @@ export default function ObjectList() {
           <button
             onClick={handleDeleteSelected}
             disabled={selectedObjects.length === 0}
-            className="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:bg-gray-300"
+            className="ml-auto mt-4 flex rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:bg-accent disabled:opacity-50"
           >
             Delete Selected
           </button>
         </>
       ) : (
-        <p className="mt-4 text-sm text-gray-500">No objects found.</p>
+        <p className="mt-4 text-gray-500">No objects found.</p>
       )}
 
       <div className="mt-4 flex justify-between">
@@ -323,11 +337,11 @@ export default function ObjectList() {
             setCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
           }
           disabled={currentPage === 1}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-gray-300"
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-accent disabled:opacity-50"
         >
           Previous
         </button>
-        <span className="text-sm">
+        <span className="">
           Page {currentPage} of {totalPages}
         </span>
         <button
@@ -335,7 +349,7 @@ export default function ObjectList() {
             setCurrentPage((prevPage) => Math.min(prevPage + 1, totalPages))
           }
           disabled={currentPage === totalPages}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-gray-300"
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-accent disabled:opacity-50"
         >
           Next
         </button>

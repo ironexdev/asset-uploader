@@ -1,50 +1,100 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { s3Client } from "@/lib/s3-client";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 
-const s3Client = new S3Client({
-  region: process.env.AWS_S3_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+interface ImageUploadInfo {
+  title: string;
+  format: string;
+  previewUrl: string;
+  bucket: string;
+}
 
-export async function POST(request: Request) {
-  const formData = await request.formData();
-  const files = formData.getAll("image") as Blob[];
-  const imageNames = formData.getAll("imageName") as string[];
-  const folder = formData.get("folder") as string;
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
 
-  if (!files.length || !imageNames.length || !folder) {
-    return new NextResponse("Missing required fields", { status: 400 });
-  }
+    const uploadResults: Array<{ imageName: string; imageUrl: string }> = [];
 
-  const uploadedFiles: { imageName: string; imageUrl: string }[] = [];
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("processedImage")) {
+        const imageUploadInfo = JSON.parse(value as string) as ImageUploadInfo;
+        const uploadResult = await uploadImageToS3(imageUploadInfo);
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const imageName = imageNames[i];
-
-    if (!file || !imageName) {
-      continue; // Skip if either file or imageName is undefined
+        uploadResults.push(uploadResult);
+      }
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    return NextResponse.json({ uploadedFiles: uploadResults }, { status: 201 });
+  } catch (error) {
+    console.error("Error uploading images:", error);
+    return NextResponse.json(
+      { error: "Failed to upload images" },
+      { status: 500 },
+    );
+  }
+}
 
-    const uploadParams = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Key: `assets/${folder}/${imageName}`,
-      Body: buffer,
-      ContentType: file.type,
-      CacheControl: "max-age=31536000",
-    };
+async function uploadImageToS3(
+  imageUploadInfo: ImageUploadInfo,
+): Promise<{ imageName: string; imageUrl: string }> {
+  const imageFile = base64ToFile(
+    imageUploadInfo.previewUrl,
+    imageUploadInfo.title,
+  );
 
-    await s3Client.send(new PutObjectCommand(uploadParams));
+  let bucketName;
+  let key;
 
-    const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/assets/${folder}/${imageName}`;
-
-    uploadedFiles.push({ imageName: `${folder}/${imageName}`, imageUrl });
+  if (imageUploadInfo.bucket === "server") {
+    bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME;
+    key = `assets/${imageUploadInfo.title}`;
+  } else {
+    bucketName = process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
+    key = `images/assets/${imageUploadInfo.title}`;
   }
 
-  return NextResponse.json(uploadedFiles);
+  const uploadParams = {
+    Bucket: bucketName,
+    Key: key,
+    Body: Buffer.from(await imageFile.arrayBuffer()),
+    ContentType: `image/${imageUploadInfo.format}`,
+    CacheControl: "max-age=31536000",
+  };
+
+  await s3Client.send(new PutObjectCommand(uploadParams));
+
+  const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${key}`;
+
+  return {
+    imageName: key,
+    imageUrl,
+  };
+}
+
+function base64ToFile(base64String: string, fileName: string): File {
+  const [mimePart, dataPart] = base64String.split(",");
+
+  if (!mimePart || !dataPart) {
+    throw new Error("Invalid base64 string");
+  }
+
+  const mimeTypeMatch = /:(.*?);/.exec(mimePart);
+
+  if (!mimeTypeMatch?.[1]) {
+    throw new Error("Invalid MIME type");
+  }
+
+  const mimeType = mimeTypeMatch[1];
+
+  const byteCharacters = atob(dataPart);
+  const byteNumbers = new Array(byteCharacters.length);
+
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: mimeType });
+
+  return new File([blob], fileName, { type: mimeType });
 }

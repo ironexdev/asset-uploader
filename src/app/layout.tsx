@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-import MyToaster from "@/app/components/my-toaster";
+import MyToaster from "@/components/my-toaster";
+import QueryProvider from "@/components/query-provider";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Asset Uploader",
+export const metadata = {
+  title: "Image Manager",
 };
 
 export default function RootLayout({
@@ -16,9 +13,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <MyToaster />
-        {children}
+      <body className="text-textPrimar bg-primary">
+        <QueryProvider>
+          <MyToaster />
+          {children}
+        </QueryProvider>
       </body>
     </html>
   );

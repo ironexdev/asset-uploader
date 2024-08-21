@@ -23,7 +23,7 @@ export async function DELETE(request: Request) {
     }
 
     const deleteParams = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME!,
+      Bucket: process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME!,
       Delete: {
         Objects: keys.map((key) => ({ Key: key })),
         Quiet: true,

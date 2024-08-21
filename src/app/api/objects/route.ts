@@ -1,5 +1,3 @@
-// objects/route.ts
-
 import { NextResponse } from "next/server";
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
@@ -11,11 +9,25 @@ const s3Client = new S3Client({
   },
 });
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const type = url.searchParams.get("type") ?? "server";
+
+  let bucketName;
+  let prefix;
+
+  if (type === "server") {
+    bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME;
+    prefix = "assets/";
+  } else {
+    bucketName = process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
+    prefix = "images/assets/";
+  }
+
   try {
     const params = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Prefix: "assets/",
+      Bucket: bucketName,
+      Prefix: prefix,
     };
 
     const data = await s3Client.send(new ListObjectsV2Command(params));
@@ -36,7 +48,10 @@ export async function GET() {
             : "Unknown date";
 
           return {
-            url: `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${item.Key}`,
+            url:
+              type === "storage"
+                ? ""
+                : `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${item.Key}`,
             key: item.Key,
             sizeInKB,
             lastModified,
