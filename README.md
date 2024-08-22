@@ -1,12 +1,13 @@
 # S3 Image Manager
 
-This simple S3 image manager allows you to:
+S3 Image Manager allows you to:
 - Optimize images with Sharp
    - Change quality
    - Change format
    - Resize
    - Clone (to create multiple versions of the same image)
 - Download processed images
+- View images stored in S3
 - Upload images to S3
 - Search images in S3
 - Delete images in S3
@@ -16,15 +17,34 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
 ## Preview
 
 ### Modification
+- Change quality
+- Change format
+- Resize
+- Clone (to create multiple versions of the same image)
+
 ![Modify](assets/modify.png)
 
 ### Upload/Download
+- Download processed images
+- Set S3 namespace for the image
+- Upload images to S3
+
 ![Upload/Download](assets/upload-download.png)
 
 ### S3 for serving images
+- View images stored in S3
+- Upload images to S3
+- Search images in S3
+- Delete images in S3
+
 ![S3 Server](assets/s3-server.png)
 
 ## S3 for storing images
+- View images stored in S3
+- Upload images to S3
+- Search images in S3
+- Delete images in S3
+
 ![S3 Storage](assets/s3-storage.png)
 
 ## Pre-requisites
@@ -66,14 +86,14 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
 5) Open your browser and go to `http://localhost:3010`
 
 ## How to use
-1) **Run it on localhost** <small>(npm run dev)</small>
-- <small>#1 Optimization Form</small>
-2) **Select image from filesystem**
-3) **Fill in quality and size** <small>(at least height or width has to be filled in, Sharp will calculate the other parameter automatically)</small>
-4) **Click optimize** <small>-> optimized image will be previewed in the Upload Form</small>
-- <small>#2 Upload Form</small>
-5) **Fill in the new image name** (technically S3 namespace) <small>-> it will be automatically prefixed with assets/</small>
-6) **Click upload** <small>-> image will be uploaded to S3 bucket and Cloudfront link will be returned</small>
+1) **Run it on localhost:3010**
+2) **Modify images** <small>(change quality, format, resize, clone)</small>
+3) **Upload images to S3** <small>(set S3 namespace for the image)</small>
+4) **Download processed images**
+5) **Manage images in S3**
+   - View images stored in S3
+   - Search images in S3
+   - Delete images in S3
 
 ## Notes
 1) Animations / GIFs are not supported
