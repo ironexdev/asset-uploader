@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Loader } from "lucide-react";
 
 interface S3Object {
   url: string;
@@ -23,6 +24,11 @@ export default function ObjectList({
   className?: string;
   type?: "server" | "storage";
 }) {
+  // NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME is optional
+  if (!process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME) {
+    type = "server";
+  }
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<{
@@ -33,10 +39,13 @@ export default function ObjectList({
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const itemsPerPage = 100;
   const s3Region = process.env.NEXT_PUBLIC_AWS_S3_REGION;
-
   const queryClient = useQueryClient();
+  const bucket =
+    type === "server"
+      ? process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME
+      : process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
+  const folderPrefix = type === "server" ? "assets/" : "images/assets/";
 
-  // Fetch objects using TanStack Query
   const { data, error, isLoading } = useQuery<S3ObjectData, Error>({
     queryKey: ["objects", type],
     queryFn: async () => {
@@ -127,7 +136,14 @@ export default function ObjectList({
     }
   };
 
-  if (isLoading) return <p>Loading...</p>;
+  if (isLoading)
+    return (
+      <Loader
+        className="fixed bottom-[-100%] left-[-100%] right-[-100%] top-[-100%] m-auto animate-spin text-primary"
+        size={48}
+      />
+    );
+
   if (error) return <p>Error: {error.message}</p>;
 
   const objects = data?.objects ?? [];
@@ -169,21 +185,16 @@ export default function ObjectList({
     currentPage * itemsPerPage,
   );
 
-  const totalPages = Math.ceil(filteredObjects.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredObjects.length / itemsPerPage) || 1;
 
-  const folders = filterObjectsByPrefix(objects, type);
+  const folders = filterObjectsByPrefix(objects, folderPrefix);
 
   const extractPath = (url: string) => {
     const match = /https?:\/\/[^\/]+(\/.*)$/.exec(url);
     return match ? match[1] : url;
   };
 
-  const generateS3Link = (key: string, type: string) => {
-    const bucket =
-      type === "server"
-        ? process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME
-        : process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
-
+  const generateS3Link = (key: string) => {
     return `https://${s3Region}.console.aws.amazon.com/s3/object/${bucket}?region=${s3Region}&bucketType=general&prefix=${key}`;
   };
 
@@ -195,12 +206,12 @@ export default function ObjectList({
           placeholder="Search..."
           value={searchQuery}
           onChange={handleSearch}
-          className="rounded border border-border bg-inputBg p-2"
+          className="bg-input w-[250px] rounded border border-primary p-2 text-primary"
         />
         <select
           value={selectedFolder ?? ""}
           onChange={handleFolderChange}
-          className="ml-2 rounded border border-border bg-inputBg p-2"
+          className="bg-input ml-2 w-[250px] cursor-pointer rounded border border-primary p-2 text-primary"
         >
           {folders.map((folder, index) => (
             <option key={index} value={folder}>
@@ -209,7 +220,6 @@ export default function ObjectList({
           ))}
         </select>
       </div>
-
       {paginatedObjects.length > 0 ? (
         <>
           <table className="mt-4 w-full table-auto border-collapse">
@@ -232,7 +242,7 @@ export default function ObjectList({
                   />
                 </th>
                 <th
-                  className="cursor-pointer pb-2 text-textPrimary"
+                  className="cursor-pointer pb-2 text-primary"
                   onClick={() => handleSort("s3Object")}
                 >
                   S3 Object{" "}
@@ -244,7 +254,7 @@ export default function ObjectList({
                 </th>
                 {type === "server" && (
                   <th
-                    className="cursor-pointer pb-2 text-textPrimary"
+                    className="cursor-pointer pb-2 text-primary"
                     onClick={() => handleSort("cloudfrontUrl")}
                   >
                     Cloudfront URL{" "}
@@ -256,7 +266,7 @@ export default function ObjectList({
                   </th>
                 )}
                 <th
-                  className="w-[80px] cursor-pointer pb-2 text-textPrimary"
+                  className="w-[80px] cursor-pointer pb-2 text-primary"
                   onClick={() => handleSort("size")}
                 >
                   Size{" "}
@@ -267,7 +277,7 @@ export default function ObjectList({
                     : ""}
                 </th>
                 <th
-                  className="w-[150px] cursor-pointer pb-2 text-right text-textPrimary"
+                  className="w-[150px] cursor-pointer pb-2 text-right text-primary"
                   onClick={() => handleSort("lastModified")}
                 >
                   Last Modified{" "}
@@ -281,17 +291,21 @@ export default function ObjectList({
             </thead>
             <tbody>
               {paginatedObjects.map((object, index) => (
-                <tr key={index} className="text-gray-700">
-                  <td className="border-t border-border py-2">
+                <tr
+                  key={index}
+                  className="cursor-pointer text-gray-700 hover:bg-secondary"
+                  onClick={() => handleCheckboxChange(object.key)}
+                >
+                  <td className="border-t border-primary py-2">
                     <input
                       type="checkbox"
                       checked={selectedObjects.includes(object.key)}
                       onChange={() => handleCheckboxChange(object.key)}
                     />
                   </td>
-                  <td className="border-t border-border py-2">
+                  <td className="border-t border-primary py-2">
                     <a
-                      href={generateS3Link(object.key, type)}
+                      href={generateS3Link(object.key)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-link hover:underline"
@@ -302,7 +316,7 @@ export default function ObjectList({
                     </a>
                   </td>
                   {type === "server" && (
-                    <td className="border-t border-border py-2">
+                    <td className="border-t border-primary py-2">
                       <a
                         href={object.url}
                         target="_blank"
@@ -313,10 +327,10 @@ export default function ObjectList({
                       </a>
                     </td>
                   )}
-                  <td className="border-t border-border py-2 text-textPrimary">
+                  <td className="border-t border-primary py-2 text-primary">
                     {object.sizeInKB} KB
                   </td>
-                  <td className="border-t border-border py-2 text-right text-textPrimary">
+                  <td className="border-t border-primary py-2 text-right text-primary">
                     {object.lastModified}
                   </td>
                 </tr>
@@ -326,48 +340,53 @@ export default function ObjectList({
           <button
             onClick={handleDeleteSelected}
             disabled={selectedObjects.length === 0}
-            className="ml-auto mt-4 flex rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:bg-accent disabled:opacity-50"
+            className="bg-button-destroy disabled:bg-gradient-button-disabled disabled:text-disabled ml-auto mt-4 flex rounded px-4 py-2 font-bold text-primary disabled:opacity-50"
           >
             Delete Selected
           </button>
+          <div className="mt-4 flex justify-between">
+            <button
+              onClick={() =>
+                setCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
+              }
+              disabled={currentPage === 1}
+              className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled w-[120px] rounded px-4 py-2 font-bold text-primary disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <div className="w-[200px] text-center text-primary">
+              Page {currentPage} of {totalPages}
+            </div>
+            <button
+              onClick={() =>
+                setCurrentPage((prevPage) => Math.min(prevPage + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled w-[120px] rounded px-4 py-2 font-bold text-primary disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </>
       ) : (
-        <p className="mt-4 text-gray-500">No objects found.</p>
+        <p className="my-20 text-center text-primary">
+          No objects{" "}
+          {searchQuery ? (
+            <>
+              matching <b className="text-secondary">{searchQuery}</b> found in{" "}
+            </>
+          ) : (
+            "found in "
+          )}
+          <b className="text-secondary">{`${bucket}/${folderPrefix}`}</b>{" "}
+          bucket.
+        </p>
       )}
-
-      <div className="mt-4 flex justify-between">
-        <button
-          onClick={() =>
-            setCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
-          }
-          disabled={currentPage === 1}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-accent disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="">
-          Page {currentPage} of {totalPages}
-        </span>
-        <button
-          onClick={() =>
-            setCurrentPage((prevPage) => Math.min(prevPage + 1, totalPages))
-          }
-          disabled={currentPage === totalPages}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-accent disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
     </div>
   );
 }
 
-function filterObjectsByPrefix(
-  objects: S3Object[],
-  type: "server" | "storage",
-): string[] {
-  const prefix = type === "server" ? "assets/" : "images/assets/";
-
+function filterObjectsByPrefix(objects: S3Object[], prefix: string): string[] {
   // Ensure uniqueness
   return objects
     .filter((obj) => obj.key.startsWith(prefix))

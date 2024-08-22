@@ -11,7 +11,10 @@ const s3Client = new S3Client({
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const type = url.searchParams.get("type") ?? "server";
+  // NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME is optional
+  const type = !process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME
+    ? "server"
+    : (url.searchParams.get("type") ?? "server");
 
   let bucketName;
   let prefix;

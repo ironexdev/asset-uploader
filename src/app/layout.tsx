@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="text-textPrimar bg-primary">
+      <body className="bg-body">
         <QueryProvider>
           <MyToaster />
           {children}

@@ -1,17 +1,39 @@
-# S3 Asset Uploader with Sharp optimization
+# S3 Image Manager
 
-Simple S3 image asset uploader with Sharp optimization. It is very simple and barebones, but it does the job.
-- In future I plan to extend this to also support videos and documents.
+This simple S3 image manager allows you to:
+- Optimize images with Sharp
+   - Change quality
+   - Change format
+   - Resize
+   - Clone (to create multiple versions of the same image)
+- Download processed images
+- Upload images to S3
+- Search images in S3
+- Delete images in S3
 
 Run it on localhost to optimize and upload images to S3. Retrieved links of uploaded images point to Cloudfront and can be used in production.
 
 ## Preview
-<img src="assets/preview.png" alt="App Preview" width="800"/>
+
+### Modification
+![Modify](assets/modify.png)
+
+### Upload/Download
+![Upload/Download](assets/upload-download.png)
+
+### S3 for serving images
+![S3 Server](assets/s3-server.png)
+
+## S3 for storing images
+![S3 Storage](assets/s3-storage.png)
 
 ## Pre-requisites
 
-1) Setup S3 bucket with Cloudfront distribution in front of it. This app returns Cloudfront links after you upload the image. [This video](https://www.youtube.com/watch?v=kbI7kRWAU-w) can help you with that.
-2) Create IAM user with following policy (replace "your-bucket-name" with your actual bucket name)
+1) Setup two AWS S3 buckets - one is for serving images (server-bucket) via Cloudfront distribution (CDN) and second is for storing raw images (storage-bucket)
+   - <small>S3 bucket for storage is optional</small>
+   - <small>Make sure to enable versioning in your S3 buckets, otherwise you might accidentally delete your images</small>
+   - <small>[How to setup a Cloudfront distribution](https://www.youtube.com/watch?v=kbI7kRWAU-w)</small>
+2) Create IAM user with following policy (replace "server-bucket-name" and "storage-bucket-name" with your actual bucket name)
 ```
 {
     "Version": "2012-10-17",
@@ -25,8 +47,10 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
                 "s3:ListBucket"
             ],
             "Resource": [
-                "arn:aws:s3:::blazing-peon-images",
-                "arn:aws:s3:::blazing-peon-images/*"
+                "arn:aws:s3:::server-bucket-name",
+                "arn:aws:s3:::server-bucket-name/*",
+                "arn:aws:s3:::storage-bucket-name/*",
+                "arn:aws:s3:::storage-bucket-name/*"
             ]
         }
     ]
@@ -50,3 +74,6 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
 - <small>#2 Upload Form</small>
 5) **Fill in the new image name** (technically S3 namespace) <small>-> it will be automatically prefixed with assets/</small>
 6) **Click upload** <small>-> image will be uploaded to S3 bucket and Cloudfront link will be returned</small>
+
+## Notes
+1) Animations / GIFs are not supported

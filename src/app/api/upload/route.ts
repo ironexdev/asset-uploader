@@ -25,6 +25,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!uploadResults.length) {
+      return NextResponse.json(
+        { error: "No images provided!" },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({ uploadedFiles: uploadResults }, { status: 201 });
   } catch (error) {
     console.error("Error uploading images:", error);
@@ -46,7 +53,11 @@ async function uploadImageToS3(
   let bucketName;
   let key;
 
-  if (imageUploadInfo.bucket === "server") {
+  // NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME is optional
+  if (
+    !process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME ||
+    imageUploadInfo.bucket === "server"
+  ) {
     bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME;
     key = `assets/${imageUploadInfo.folder}/${imageUploadInfo.title}`.replace(
       /\/\//g,

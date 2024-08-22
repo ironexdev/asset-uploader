@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import ImageUploadForm, {
@@ -11,6 +11,7 @@ import ImageModifyForm, {
 } from "@/components/image-modify-form";
 import { ChevronLeft, Loader } from "lucide-react";
 import Header from "@/components/header";
+import * as process from "node:process";
 
 interface UploadFormData {
   title: string;
@@ -32,6 +33,17 @@ export default function HomePage() {
   );
   const [uploadForms, setUploadForms] = useState<UploadFormData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [inputFileKey, setInputFileKey] = useState(0);
+  useEffect(() => {
+    if (processedImages.length > 0 && uploadForms.length === 0) {
+      const initialForms = processedImages.map((processedImage) => ({
+        title: processedImage.title || "",
+        bucket: processedImage.raw ? "storage" : "server",
+        folder: processedImage.folder || "",
+      }));
+      setUploadForms(initialForms);
+    }
+  }, [processedImages, uploadForms.length]);
 
   const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -82,14 +94,11 @@ export default function HomePage() {
       (meta) => meta.name === data.title.replace("-clone", ""),
     );
 
-    // Clone the image file using the found index
     const clonedFile = imageFiles[originalFileIndex]!;
 
-    // Add the cloned image file to imageFiles and imageMetas
     setImageFiles((prevFiles) => [...prevFiles, clonedFile]);
     setImageMetas((prevMetas) => [...prevMetas, clonedImage]);
 
-    // Clone the corresponding modification data
     setModifications((prevModifications) => [...prevModifications, data]);
   };
 
@@ -105,7 +114,7 @@ export default function HomePage() {
     onSuccess: (data) => {
       setProcessedImages(data);
       setStep(2);
-      toast.success("Images processed successfully");
+      toast.success("Images processed successfully! Now upload them.");
     },
     onError: (error: unknown) => {
       if (error instanceof Error) {
@@ -141,7 +150,13 @@ export default function HomePage() {
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("Error uploading images");
+      if (!res.ok) {
+        if (res.status === 400) {
+          throw new Error(((await res.json()) as { error: string }).error);
+        } else {
+          throw new Error("Error uploading images");
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Images uploaded successfully");
@@ -161,7 +176,6 @@ export default function HomePage() {
     setLoading(true);
     const formData = new FormData();
 
-    // Add processed image data to FormData
     processedImages.forEach((image, index) => {
       const form = uploadForms[index];
 
@@ -179,6 +193,19 @@ export default function HomePage() {
     uploadImagesMutation.mutate(formData);
   };
 
+  const handleDownload = () => {
+    processedImages.forEach((image: UploadedImageData) => {
+      const url: string = image.previewUrl;
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = image.title || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  };
+
   const handleUploadFormChange = (index: number, formData: UploadFormData) => {
     setUploadForms((prevForms) => {
       const newForms = [...prevForms];
@@ -188,6 +215,7 @@ export default function HomePage() {
   };
 
   const resetForms = () => {
+    setInputFileKey((prev) => prev + 1);
     setStep(1);
     setImageFiles([]);
     setImageMetas([]);
@@ -197,17 +225,18 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-primary text-textPrimary">
+    <div className="min-h-screen">
       <Header step={step} />
-      <main className="container mx-auto max-w-container space-y-6 p-4 pt-24">
+      <main className="container mx-auto max-w-container space-y-6 p-5 pt-[6.5rem]">
         {step === 1 ? (
           <div className="space-y-6">
             <input
+              key={inputFileKey}
               type="file"
               multiple
               accept="image/*"
               onChange={handleImageSelection}
-              className="w-full rounded border border-border bg-inputBg p-2 text-textPrimary"
+              className="bg-input w-full rounded border border-primary p-2 text-primary"
             />
             <div className="flex-start flex flex-wrap gap-10">
               {imageMetas.map((meta, index) => (
@@ -223,13 +252,13 @@ export default function HomePage() {
             {imageFiles.length > 0 && (
               <div className="flex">
                 <button
-                  className="btn btn-secondary ml-auto mt-4 flex h-[48px] items-center rounded bg-accent px-10 font-bold text-textPrimary transition"
+                  className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-auto mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
                   onClick={resetForms}
                 >
                   Reset
                 </button>
                 <button
-                  className="btn text-md ml-5 mt-4 flex h-[48px] items-center rounded bg-highlighted px-10 font-bold text-textPrimary transition disabled:bg-accent"
+                  className="text-md bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-5 mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
                   onClick={handleModificationSubmit}
                   disabled={loading}
                 >
@@ -244,11 +273,11 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <div className="space-y-6">
+            <div className="h-48px space-y-6">
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex h-[48px] w-[200px] items-center justify-center rounded-md bg-accent"
+                className="bg-gradient-button mt-2 flex h-[40px] w-[200px] items-center justify-center rounded-md text-primary"
               >
                 <ChevronLeft size={32} />
               </button>
@@ -264,16 +293,22 @@ export default function HomePage() {
             </div>
             <div className="flex">
               <button
-                className="btn btn-secondary ml-auto mt-4 flex h-[48px] items-center rounded bg-accent px-10 font-bold text-textPrimary transition"
+                className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
                 onClick={resetForms}
               >
                 Reset
               </button>
               <button
-                className="btn btn-primary ml-5 mt-4 flex h-[48px] items-center rounded bg-highlighted px-10 font-bold text-textPrimary transition"
+                className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-auto mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
+                onClick={handleDownload}
+              >
+                Download
+              </button>
+              <button
+                className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-5 mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
                 onClick={handleUploadSubmit}
               >
-                Upload Images
+                Upload
               </button>
             </div>
           </>

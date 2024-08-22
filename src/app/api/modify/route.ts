@@ -71,21 +71,35 @@ async function processImage(
     outputFormat = metadata.format;
     quality = 100;
   } else {
-    outputHeight = imageInfo.height ?? metadata.height;
-    outputWidth = imageInfo.width ?? metadata.width;
+    if (!imageInfo.height && !imageInfo.width) {
+      outputHeight = metadata.height;
+      outputWidth = metadata.width;
+    } else {
+      outputHeight =
+        imageInfo.height && imageInfo.height > 0 ? imageInfo.height : undefined;
+      outputWidth =
+        imageInfo.width && imageInfo.width > 0 ? imageInfo.width : undefined;
+    }
+
     outputFormat = imageInfo.format ?? metadata.format;
     quality = imageInfo.quality;
   }
 
-  // Process image with sharp
-  const processedImageBuffer = raw
-    ? await image.toBuffer()
-    : await image
-        .resize(outputWidth, outputHeight)
-        .toFormat(outputFormat as keyof sharp.FormatEnum, {
-          quality,
-        })
-        .toBuffer();
+  if (!raw) {
+    image
+      .resize(outputWidth, outputHeight)
+      .toFormat(outputFormat as keyof sharp.FormatEnum, {
+        quality,
+      });
+  }
+
+  const { data: processedImageBuffer, info } = await image.toBuffer({
+    resolveWithObject: true,
+  });
+
+  outputHeight = info.height;
+  outputWidth = info.width;
+  outputFormat = info.format;
 
   return {
     title: outputTitle,

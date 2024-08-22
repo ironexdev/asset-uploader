@@ -28,7 +28,7 @@ interface ImageUploadFormProps {
 const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
   const { control, watch } = useForm<UploadFormData>({
     defaultValues: {
-      title: image.title || "",
+      title: (image.title || "").replace(/\.[^/.]+$/, `.${image.format}`),
       bucket: image.raw ? "storage" : "server",
       folder: image.folder || "",
     },
@@ -51,10 +51,10 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
   const aspectRatio = formatAspectRatio(Number(image.aspectRatio.toFixed(2)));
 
   return (
-    <div className="h-[470px] w-[700px] rounded border border-border bg-secondary p-6 text-textPrimary">
+    <div className="h-[470px] w-[700px] rounded border border-primary bg-primary p-6 text-primary">
       <div className="flex h-full space-x-6">
         {/* Image Preview */}
-        <div className="flex w-[300px] flex-shrink-0 rounded-lg bg-accent p-5">
+        <div className="flex w-[300px] flex-shrink-0 rounded-lg bg-secondary p-5">
           <img
             src={image.previewUrl}
             alt={`Preview ${image.title}`}
@@ -72,14 +72,17 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
                 <label className="block text-sm">S3 Bucket</label>
                 <select
                   {...field}
-                  className="mt-2 w-full rounded border border-border bg-inputBgDark p-2 text-textPrimary"
+                  className="bg-input mt-2 w-full rounded border border-primary p-2 text-primary"
                 >
                   <option value="server">
                     {process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME}
                   </option>
-                  <option value="storage">
-                    {process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME}
-                  </option>
+                  {/* NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME is optional */}
+                  {process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME && (
+                    <option value="storage">
+                      {process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME}
+                    </option>
+                  )}
                 </select>
               </div>
             )}
@@ -97,7 +100,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
                     selectedBucket === "server" ? "assets/" : "images/assets/"
                   }`}
                   type="text"
-                  className="mt-2 w-full rounded border border-border bg-inputBgDark p-2 text-textPrimary"
+                  className="bg-input mt-2 w-full rounded border border-primary p-2 text-primary"
                 />
               </div>
             )}
@@ -113,7 +116,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
                   {...field}
                   type="text"
                   placeholder="Title"
-                  className="mt-2 w-full rounded border border-border bg-inputBgDark p-2 text-textPrimary"
+                  className="bg-input mt-2 w-full rounded border border-primary p-2 text-primary"
                 />
               </div>
             )}
@@ -149,7 +152,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
             </div>
 
             <div className="flex min-h-[40px] flex-col justify-between">
-              <label className="block text-sm">RAW</label>
+              <label className="block text-sm">Modified</label>
               <span className="font-bold">{image.raw ? "Yes" : "No"}</span>
             </div>
           </div>
