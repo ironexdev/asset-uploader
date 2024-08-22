@@ -7,6 +7,7 @@ interface ImageUploadInfo {
   format: string;
   previewUrl: string;
   bucket: string;
+  folder: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -47,10 +48,17 @@ async function uploadImageToS3(
 
   if (imageUploadInfo.bucket === "server") {
     bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME;
-    key = `assets/${imageUploadInfo.title}`;
+    key = `assets/${imageUploadInfo.folder}/${imageUploadInfo.title}`.replace(
+      /\/\//g,
+      "/",
+    );
   } else {
     bucketName = process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
-    key = `images/assets/${imageUploadInfo.title}`;
+    key =
+      `images/assets/${imageUploadInfo.folder}/${imageUploadInfo.title}`.replace(
+        /\/\//g,
+        "/",
+      );
   }
 
   const uploadParams = {

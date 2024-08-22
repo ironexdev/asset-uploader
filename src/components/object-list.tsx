@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ export default function ObjectList({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const itemsPerPage = 100;
-  const s3Region = process.env.AWS_S3_REGION;
+  const s3Region = process.env.NEXT_PUBLIC_AWS_S3_REGION;
 
   const queryClient = useQueryClient();
 
@@ -67,11 +67,18 @@ export default function ObjectList({
       return keys;
     },
     onSuccess: (deletedKeys) => {
-      queryClient.setQueryData<S3ObjectData>(["objects", type], (oldData) => ({
-        objects: oldData?.objects.filter(
-          (object) => !deletedKeys.includes(object.key),
-        ),
-      }));
+      queryClient.setQueryData<S3ObjectData>(["objects", type], (oldData) => {
+        if (!oldData) {
+          return { objects: [] };
+        }
+
+        return {
+          ...oldData,
+          objects: oldData.objects.filter(
+            (object) => !deletedKeys.includes(object.key),
+          ),
+        };
+      });
       toast.success("Selected objects deleted successfully!");
       setSelectedObjects([]);
     },
@@ -164,29 +171,20 @@ export default function ObjectList({
 
   const totalPages = Math.ceil(filteredObjects.length / itemsPerPage);
 
-  const uniqueFolders = Array.from(
-    new Set(
-      objects.map((object) => {
-        const segments = object.key.split("/");
-        if (segments[0] === "assets") {
-          if (segments[1] === "images" && segments.length > 2) {
-            return `assets/${segments[2]}`;
-          } else if (segments[1] !== "images") {
-            return null;
-          }
-        }
-        return segments[0];
-      }),
-    ),
-  ).filter((folder) => folder !== null);
+  const folders = filterObjectsByPrefix(objects, type);
 
   const extractPath = (url: string) => {
     const match = /https?:\/\/[^\/]+(\/.*)$/.exec(url);
     return match ? match[1] : url;
   };
 
-  const generateS3Link = (key: string) => {
-    return `https://${s3Region}.console.aws.amazon.com/s3/object/blazing-peon-images?region=${s3Region}&bucketType=general&prefix=${key}`;
+  const generateS3Link = (key: string, type: string) => {
+    const bucket =
+      type === "server"
+        ? process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME
+        : process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
+
+    return `https://${s3Region}.console.aws.amazon.com/s3/object/${bucket}?region=${s3Region}&bucketType=general&prefix=${key}`;
   };
 
   return (
@@ -204,8 +202,7 @@ export default function ObjectList({
           onChange={handleFolderChange}
           className="ml-2 rounded border border-border bg-inputBg p-2"
         >
-          <option value="">All Folders</option>
-          {uniqueFolders.map((folder, index) => (
+          {folders.map((folder, index) => (
             <option key={index} value={folder}>
               {folder}
             </option>
@@ -234,6 +231,17 @@ export default function ObjectList({
                     }
                   />
                 </th>
+                <th
+                  className="cursor-pointer pb-2 text-textPrimary"
+                  onClick={() => handleSort("s3Object")}
+                >
+                  S3 Object{" "}
+                  {sortOrder.column === "s3Object"
+                    ? sortOrder.order === "asc"
+                      ? "▲"
+                      : "▼"
+                    : ""}
+                </th>
                 {type === "server" && (
                   <th
                     className="cursor-pointer pb-2 text-textPrimary"
@@ -247,17 +255,6 @@ export default function ObjectList({
                       : ""}
                   </th>
                 )}
-                <th
-                  className="cursor-pointer pb-2 text-textPrimary"
-                  onClick={() => handleSort("s3Object")}
-                >
-                  S3 Object{" "}
-                  {sortOrder.column === "s3Object"
-                    ? sortOrder.order === "asc"
-                      ? "▲"
-                      : "▼"
-                    : ""}
-                </th>
                 <th
                   className="w-[80px] cursor-pointer pb-2 text-textPrimary"
                   onClick={() => handleSort("size")}
@@ -292,6 +289,18 @@ export default function ObjectList({
                       onChange={() => handleCheckboxChange(object.key)}
                     />
                   </td>
+                  <td className="border-t border-border py-2">
+                    <a
+                      href={generateS3Link(object.key, type)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-link hover:underline"
+                    >
+                      {type === "server"
+                        ? object.key.split("/").pop()
+                        : object.key}
+                    </a>
+                  </td>
                   {type === "server" && (
                     <td className="border-t border-border py-2">
                       <a
@@ -304,16 +313,6 @@ export default function ObjectList({
                       </a>
                     </td>
                   )}
-                  <td className="border-t border-border py-2">
-                    <a
-                      href={generateS3Link(object.key)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-link text-blue-500 hover:underline"
-                    >
-                      {object.key.split("/").pop()}
-                    </a>
-                  </td>
                   <td className="border-t border-border py-2 text-textPrimary">
                     {object.sizeInKB} KB
                   </td>
@@ -361,4 +360,27 @@ export default function ObjectList({
       </div>
     </div>
   );
+}
+
+function filterObjectsByPrefix(
+  objects: S3Object[],
+  type: "server" | "storage",
+): string[] {
+  const prefix = type === "server" ? "assets/" : "images/assets/";
+
+  // Ensure uniqueness
+  return objects
+    .filter((obj) => obj.key.startsWith(prefix))
+    .map((obj) => {
+      // Remove prefix
+      const path = obj.key;
+      // Remove the file name (anything after the last '/')
+      const lastSlashIndex = path.lastIndexOf("/");
+      if (lastSlashIndex === -1) {
+        return ""; // Return empty string if no folder structure exists
+      }
+      return path.substring(0, lastSlashIndex);
+    })
+    .filter((folder) => folder !== "") // Remove empty strings
+    .filter((folder, index, self) => self.indexOf(folder) === index);
 }
