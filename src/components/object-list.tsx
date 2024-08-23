@@ -189,9 +189,9 @@ export default function ObjectList({
 
   const folders = filterObjectsByPrefix(objects, folderPrefix);
 
-  const extractPath = (url: string) => {
+  const extractPath = (url: string): string => {
     const match = /https?:\/\/[^\/]+(\/.*)$/.exec(url);
-    return match ? match[1] : url;
+    return match ? match[1]! : url;
   };
 
   const generateS3Link = (key: string) => {
@@ -206,12 +206,12 @@ export default function ObjectList({
           placeholder="Search..."
           value={searchQuery}
           onChange={handleSearch}
-          className="bg-input w-[250px] rounded border border-primary p-2 text-primary"
+          className="w-[250px] rounded border border-primary bg-input p-2 text-primary"
         />
         <select
           value={selectedFolder ?? ""}
           onChange={handleFolderChange}
-          className="bg-input ml-2 w-[250px] cursor-pointer rounded border border-primary p-2 text-primary"
+          className="ml-2 w-[250px] cursor-pointer rounded border border-primary bg-input p-2 text-primary"
         >
           {folders.map((folder, index) => (
             <option key={index} value={folder}>
@@ -310,9 +310,7 @@ export default function ObjectList({
                       rel="noopener noreferrer"
                       className="text-link hover:underline"
                     >
-                      {type === "server"
-                        ? object.key.split("/").pop()
-                        : object.key}
+                      {object.key}
                     </a>
                   </td>
                   {type === "server" && (
@@ -323,7 +321,7 @@ export default function ObjectList({
                         rel="noopener noreferrer"
                         className="text-link hover:underline"
                       >
-                        {extractPath(object.url)}
+                        {extractPath(object.url).split("/").pop()}
                       </a>
                     </td>
                   )}
@@ -340,7 +338,7 @@ export default function ObjectList({
           <button
             onClick={handleDeleteSelected}
             disabled={selectedObjects.length === 0}
-            className="bg-button-destroy disabled:bg-gradient-button-disabled disabled:text-disabled ml-auto mt-4 flex rounded px-4 py-2 font-bold text-primary disabled:opacity-50"
+            className="ml-auto mt-4 flex rounded bg-button-destroy px-4 py-2 font-bold text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
           >
             Delete Selected
           </button>
@@ -350,7 +348,7 @@ export default function ObjectList({
                 setCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
               }
               disabled={currentPage === 1}
-              className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled w-[120px] rounded px-4 py-2 font-bold text-primary disabled:opacity-50"
+              className="w-[120px] rounded bg-gradient-button px-4 py-2 font-bold text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
             >
               Previous
             </button>
@@ -362,7 +360,7 @@ export default function ObjectList({
                 setCurrentPage((prevPage) => Math.min(prevPage + 1, totalPages))
               }
               disabled={currentPage === totalPages}
-              className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled w-[120px] rounded px-4 py-2 font-bold text-primary disabled:opacity-50"
+              className="w-[120px] rounded bg-gradient-button px-4 py-2 font-bold text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
             >
               Next
             </button>

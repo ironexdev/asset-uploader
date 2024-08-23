@@ -52,9 +52,9 @@ export async function GET(request: Request) {
 
           return {
             url:
-              type === "storage"
-                ? ""
-                : `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${item.Key}`,
+              type === "server"
+                ? `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${item.Key}`
+                : "",
             key: item.Key,
             sizeInKB,
             lastModified,
