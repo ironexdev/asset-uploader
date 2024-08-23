@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { X } from "lucide-react";
 
 export interface ImageModificationData {
   title: string;
@@ -24,6 +25,7 @@ interface ImageModifyFormProps {
     data: ImageModificationData,
     clonedImageData: { name: string; size: number; type: string; url: string },
   ) => void;
+  onRemove: (index: number) => void;
   onChange: (data: ImageModificationData) => void;
 }
 
@@ -31,6 +33,7 @@ const ImageModifyForm = ({
   imageData,
   index,
   onClone,
+  onRemove,
   onChange,
 }: ImageModifyFormProps) => {
   const { control, watch, setValue } = useForm<ImageModificationData>({
@@ -113,9 +116,13 @@ const ImageModifyForm = ({
     );
   };
 
+  const handleRemove = (index: number) => {
+    onRemove(index);
+  };
+
   return (
     <div className="h-[470px] w-[700px] rounded border border-primary bg-primary p-6 text-primary">
-      <div className="flex h-full space-x-6">
+      <div className="flex h-full justify-between">
         <div className="flex w-[300px] flex-shrink-0 rounded-lg bg-secondary p-5">
           {imageData.url && (
             <img
@@ -126,8 +133,8 @@ const ImageModifyForm = ({
           )}
         </div>
 
-        <div>
-          <div className="col-span-2 mb-4 flex items-center justify-between">
+        <div className="w-[330px]">
+          <div className="mb-4 flex items-center justify-between">
             <Controller
               name="title"
               control={control}
@@ -135,18 +142,23 @@ const ImageModifyForm = ({
                 <input
                   type="text"
                   {...field}
-                  className="bg-input w-full rounded border border-primary p-2 text-primary"
+                  className="w-[180px] rounded border border-primary bg-input p-2 text-primary"
                 />
               )}
             />
             <button
               onClick={handleClone}
-              className="bg-button-secondary ml-4 w-[100px] rounded p-2 font-bold text-primary transition hover:bg-opacity-85"
+              className="w-[80px] rounded bg-button-secondary p-2 font-bold text-primary transition"
             >
               Clone
             </button>
+            <button
+              onClick={() => handleRemove(index)}
+              className="flex h-[40px] w-[40px] items-center justify-center rounded bg-button-destroy"
+            >
+              <X size={24} className="cursor-pointer" />
+            </button>
           </div>
-
           <div>
             <Controller
               name="raw"
@@ -180,7 +192,7 @@ const ImageModifyForm = ({
                       type="number"
                       {...field}
                       placeholder="Will be automatically calculated"
-                      className="bg-input disabled:bg-gradient-button-disabled disabled:text-disabled mt-2 w-full rounded border border-primary p-2 text-primary disabled:opacity-50"
+                      className="mt-2 w-full rounded border border-primary bg-input p-2 text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                       disabled={watch("raw")}
                       value={field.value ?? ""}
                     />
@@ -202,7 +214,7 @@ const ImageModifyForm = ({
                       type="number"
                       {...field}
                       placeholder="Will be automatically calculated"
-                      className="bg-input disabled:bg-gradient-button-disabled disabled:text-disabled mt-2 w-full rounded border border-primary p-2 text-primary disabled:opacity-50"
+                      className="mt-2 w-full rounded border border-primary bg-input p-2 text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                       disabled={watch("raw")}
                       value={field.value ?? ""}
                     />
@@ -228,7 +240,7 @@ const ImageModifyForm = ({
                       min="1"
                       max="100"
                       {...field}
-                      className="bg-input disabled:bg-gradient-button-disabled disabled:text-disabled mt-2 w-full rounded border border-primary text-primary disabled:opacity-50"
+                      className="mt-2 w-full rounded border border-primary bg-input text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                       disabled={watch("raw")}
                     />
                   )}
@@ -245,7 +257,7 @@ const ImageModifyForm = ({
                   render={({ field }) => (
                     <select
                       {...field}
-                      className="bg-input disabled:bg-gradient-button-disabled disabled:text-disabled mt-2 w-full rounded border border-primary p-2 text-primary disabled:opacity-50"
+                      className="mt-2 w-full rounded border border-primary bg-input p-2 text-primary disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                       disabled={watch("raw")}
                     >
                       {Object.entries(formats).map(([key, value]) => (

@@ -11,7 +11,6 @@ import ImageModifyForm, {
 } from "@/components/image-modify-form";
 import { ChevronLeft, Loader } from "lucide-react";
 import Header from "@/components/header";
-import * as process from "node:process";
 
 interface UploadFormData {
   title: string;
@@ -100,6 +99,44 @@ export default function HomePage() {
     setImageMetas((prevMetas) => [...prevMetas, clonedImage]);
 
     setModifications((prevModifications) => [...prevModifications, data]);
+  };
+
+  const handleRemove = (index: number) => {
+    const dt = new DataTransfer();
+
+    const inputElement = document.getElementById(
+      "image-selection",
+    ) as HTMLInputElement;
+
+    if (inputElement?.files) {
+      const { files } = inputElement;
+
+      for (let i = 0; i < files.length; i++) {
+        if (i !== index) {
+          dt.items.add(files[i]!);
+        }
+      }
+
+      inputElement.files = dt.files;
+
+      setImageFiles(Array.from(dt.files));
+
+      setImageMetas((prevMetas) => {
+        const newMetas = [...prevMetas];
+        newMetas.splice(index, 1);
+        return newMetas;
+      });
+
+      setModifications((prevModifications) => {
+        const newModifications = [...prevModifications];
+        newModifications.splice(index, 1);
+        return newModifications;
+      });
+
+      if (dt.files.length === 0) {
+        setInputFileKey((prev) => prev + 1);
+      }
+    }
   };
 
   const processImagesMutation = useMutation({
@@ -232,11 +269,12 @@ export default function HomePage() {
           <div className="space-y-6">
             <input
               key={inputFileKey}
+              id="image-selection"
               type="file"
               multiple
               accept="image/*"
               onChange={handleImageSelection}
-              className="bg-input w-full rounded border border-primary p-2 text-primary"
+              className="w-full rounded border border-primary bg-input p-2 text-primary"
             />
             <div className="flex-start flex flex-wrap gap-10">
               {imageMetas.map((meta, index) => (
@@ -245,6 +283,7 @@ export default function HomePage() {
                   imageData={meta}
                   index={index}
                   onClone={handleClone}
+                  onRemove={handleRemove}
                   onChange={(data) => handleModificationChange(index, data)}
                 />
               ))}
@@ -252,13 +291,13 @@ export default function HomePage() {
             {imageFiles.length > 0 && (
               <div className="flex">
                 <button
-                  className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-auto mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
+                  className="ml-auto mt-4 flex h-[40px] items-center rounded bg-gradient-button px-10 font-bold text-primary transition disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                   onClick={resetForms}
                 >
                   Reset
                 </button>
                 <button
-                  className="text-md bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-5 mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
+                  className="text-md ml-5 mt-4 flex h-[40px] items-center rounded bg-gradient-button px-10 font-bold text-primary transition disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                   onClick={handleModificationSubmit}
                   disabled={loading}
                 >
@@ -277,7 +316,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="bg-gradient-button mt-2 flex h-[40px] w-[200px] items-center justify-center rounded-md text-primary"
+                className="mt-2 flex h-[40px] w-[200px] items-center justify-center rounded-md bg-gradient-button text-primary"
               >
                 <ChevronLeft size={32} />
               </button>
@@ -293,19 +332,19 @@ export default function HomePage() {
             </div>
             <div className="flex">
               <button
-                className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
+                className="mt-4 flex h-[40px] items-center rounded bg-gradient-button px-10 font-bold text-primary transition disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                 onClick={resetForms}
               >
                 Reset
               </button>
               <button
-                className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-auto mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
+                className="ml-auto mt-4 flex h-[40px] items-center rounded bg-gradient-button px-10 font-bold text-primary transition disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                 onClick={handleDownload}
               >
                 Download
               </button>
               <button
-                className="bg-gradient-button disabled:bg-gradient-button-disabled disabled:text-disabled ml-5 mt-4 flex h-[40px] items-center rounded px-10 font-bold text-primary transition disabled:opacity-50"
+                className="ml-5 mt-4 flex h-[40px] items-center rounded bg-gradient-button px-10 font-bold text-primary transition disabled:bg-gradient-button-disabled disabled:text-disabled disabled:opacity-50"
                 onClick={handleUploadSubmit}
               >
                 Upload
