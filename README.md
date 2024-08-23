@@ -80,7 +80,7 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
 ## How to setup
 1) Download or git clone this repo
 2) Create .env file based on .env.example and place it in the root of the project
-    - The region needs to be us-east-1 for Cloudfront to work (it is global, but according to AWS it has to be configured in us-east-1)
+    - The region needs to be us-east-1 for Cloudfront to work (Cloudfront is a global service, but according to AWS it has to be configured in us-east-1)
 3) Run `npm run install` or `yarn install` or `pnpm install` (I use pnpm, but other package managers should work too)
 4) Run `npm run dev` or `yarn dev` or `pnpm dev` to start the server
 5) Open your browser and go to `http://localhost:3010`
@@ -96,4 +96,7 @@ Run it on localhost to optimize and upload images to S3. Retrieved links of uplo
    - Delete images in S3
 
 ## Notes
-1) Animations / GIFs are not supported
+- Animations / GIFs are not supported
+   aws s3api delete-objects --bucket blazing-peon-images --delete "$(aws s3api list-object-versions --bucket blazing-peon-images --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')" --output=json
+- Fun command to **delete all objects in a bucket permanently**, including versions - I suggest you don't use this a
+   - `aws s3api delete-objects --bucket <replace-this-with-bucket-name> --delete "$(aws s3api list-object-versions --bucket <replace-this-with-bucket-name> --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')" --output=json > /dev/null 2>&1`
