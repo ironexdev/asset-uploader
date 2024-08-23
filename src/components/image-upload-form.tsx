@@ -72,7 +72,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
                 <label className="block text-sm">S3 Bucket</label>
                 <select
                   {...field}
-                  className="bg-input mt-2 w-full rounded border border-primary p-2 text-primary"
+                  className="mt-2 w-full rounded border border-primary bg-input p-2 text-primary"
                 >
                   <option value="server">
                     {process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME}
@@ -100,7 +100,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
                     selectedBucket === "server" ? "assets/" : "images/assets/"
                   }`}
                   type="text"
-                  className="bg-input mt-2 w-full rounded border border-primary p-2 text-primary"
+                  className="mt-2 w-full rounded border border-primary bg-input p-2 text-primary"
                 />
               </div>
             )}
@@ -116,7 +116,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
                   {...field}
                   type="text"
                   placeholder="Title"
-                  className="bg-input mt-2 w-full rounded border border-primary p-2 text-primary"
+                  className="mt-2 w-full rounded border border-primary bg-input p-2 text-primary"
                 />
               </div>
             )}
@@ -153,7 +153,7 @@ const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
 
             <div className="flex min-h-[40px] flex-col justify-between">
               <label className="block text-sm">Modified</label>
-              <span className="font-bold">{image.raw ? "Yes" : "No"}</span>
+              <span className="font-bold">{image.raw ? "No" : "Yes"}</span>
             </div>
           </div>
         </div>
