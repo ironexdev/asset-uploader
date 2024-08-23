@@ -10,7 +10,7 @@ interface ImageInfo {
   raw: boolean;
 }
 
-interface ProcessedImage {
+interface ModifiedImage {
   title: string;
   previewUrl: string;
   sizeKb: number;
@@ -24,7 +24,7 @@ interface ProcessedImage {
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const processedImages: ProcessedImage[] = [];
+    const modifiedImages: ModifiedImage[] = [];
 
     // Iterate through formData entries
     for (const [key, value] of formData.entries()) {
@@ -35,42 +35,45 @@ export async function POST(req: NextRequest) {
           formData.get(`modification${index}`) as string,
         ) as ImageInfo;
 
-        const processedImage = await processImage(imageFile, imageInfo);
-        processedImages.push(processedImage);
+        const modifiedImage = await modifyImage(imageFile, imageInfo);
+        modifiedImages.push(modifiedImage);
       }
     }
 
-    return NextResponse.json(processedImages);
+    return NextResponse.json(modifiedImages);
   } catch (error) {
-    console.error("Error processing images:", error);
+    console.error("Error modifying images:", error);
     return NextResponse.json(
-      { error: "Failed to process images" },
+      { error: "Failed to modify images" },
       { status: 500 },
     );
   }
 }
 
-async function processImage(
+async function modifyImage(
   imageFile: File,
   imageInfo: ImageInfo,
-): Promise<ProcessedImage> {
+): Promise<ModifiedImage> {
   const fileBuffer = await imageFile.arrayBuffer();
-  const image = sharp(Buffer.from(fileBuffer), { animated: false });
 
-  const metadata = await image.metadata();
   const raw = imageInfo.raw;
   const outputTitle = imageInfo.title;
   let outputWidth;
   let outputHeight;
   let outputFormat;
   let quality;
+  let imageBuffer;
+  let modifiedInfo;
 
   if (raw) {
-    outputHeight = metadata.height;
-    outputWidth = metadata.width;
-    outputFormat = metadata.format;
-    quality = 100;
+    imageBuffer = fileBuffer;
+    outputHeight = imageInfo.height!;
+    outputWidth = imageInfo.width!;
+    outputFormat = imageInfo.format;
   } else {
+    const image = sharp(Buffer.from(fileBuffer), { animated: false });
+    const metadata = await image.metadata();
+
     if (!imageInfo.height && !imageInfo.width) {
       outputHeight = metadata.height;
       outputWidth = metadata.width;
@@ -83,28 +86,37 @@ async function processImage(
 
     outputFormat = imageInfo.format ?? metadata.format;
     quality = imageInfo.quality;
-  }
 
-  if (!raw) {
     image
       .resize(outputWidth, outputHeight)
       .toFormat(outputFormat as keyof sharp.FormatEnum, {
         quality,
       });
+
+    const {
+      data,
+      info,
+    }: {
+      data: Buffer;
+      info: { height: number; width: number; format: string };
+    } = await image.toBuffer({
+      resolveWithObject: true,
+    });
+
+    modifiedInfo = info;
+    imageBuffer = data;
+
+    outputHeight = modifiedInfo.height;
+    outputWidth = modifiedInfo.width;
+    outputFormat = modifiedInfo.format;
   }
 
-  const { data: processedImageBuffer, info } = await image.toBuffer({
-    resolveWithObject: true,
-  });
-
-  outputHeight = info.height;
-  outputWidth = info.width;
-  outputFormat = info.format;
+  const buffer = Buffer.from(imageBuffer).toString("base64");
 
   return {
     title: outputTitle,
-    previewUrl: `data:image/${outputFormat};base64,${processedImageBuffer.toString("base64")}`,
-    sizeKb: processedImageBuffer.length / 1024,
+    previewUrl: `data:image/${outputFormat};base64,${buffer}`,
+    sizeKb: imageBuffer.byteLength / 1024,
     format: outputFormat,
     height: outputHeight,
     width: outputWidth,

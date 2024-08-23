@@ -11,6 +11,7 @@ import ImageModifyForm, {
 } from "@/components/image-modify-form";
 import { ChevronLeft, Loader } from "lucide-react";
 import Header from "@/components/header";
+import { base64ToFile } from "@/lib/utils";
 
 interface UploadFormData {
   title: string;
@@ -151,7 +152,7 @@ export default function HomePage() {
     onSuccess: (data) => {
       setProcessedImages(data);
       setStep(2);
-      toast.success("Images processed successfully! Now upload them.");
+      toast.success("Images were modified successfully! Now upload them.");
     },
     onError: (error: unknown) => {
       if (error instanceof Error) {
@@ -217,13 +218,16 @@ export default function HomePage() {
       const form = uploadForms[index];
 
       if (form) {
+        const { previewUrl, ...rest } = image;
         const requestData = {
-          ...image,
+          ...rest,
           folder: form.folder,
           title: form.title,
           bucket: form.bucket,
         };
-        formData.append(`processedImage${index}`, JSON.stringify(requestData));
+
+        formData.append(`image${index}`, base64ToFile(previewUrl, form.title));
+        formData.append(`info${index}`, JSON.stringify(requestData));
       }
     });
 

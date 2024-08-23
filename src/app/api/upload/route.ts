@@ -2,10 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { s3Client } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 
-interface ImageUploadInfo {
+interface Info {
   title: string;
   format: string;
-  previewUrl: string;
   bucket: string;
   folder: string;
 }
@@ -17,9 +16,13 @@ export async function POST(req: NextRequest) {
     const uploadResults: Array<{ imageName: string; imageUrl: string }> = [];
 
     for (const [key, value] of formData.entries()) {
-      if (key.startsWith("processedImage")) {
-        const imageUploadInfo = JSON.parse(value as string) as ImageUploadInfo;
-        const uploadResult = await uploadImageToS3(imageUploadInfo);
+      if (key.startsWith("info")) {
+        const index = key.replace("info", "");
+
+        const info = JSON.parse(value as string) as Info;
+        const image = formData.get(`image${index}`) as File;
+
+        const uploadResult = await uploadImageToS3(image, info);
 
         uploadResults.push(uploadResult);
       }
@@ -43,40 +46,29 @@ export async function POST(req: NextRequest) {
 }
 
 async function uploadImageToS3(
-  imageUploadInfo: ImageUploadInfo,
+  imageFile: File,
+  info: Info,
 ): Promise<{ imageName: string; imageUrl: string }> {
-  const imageFile = base64ToFile(
-    imageUploadInfo.previewUrl,
-    imageUploadInfo.title,
-  );
-
   let bucketName;
   let key;
 
   // NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME is optional
   if (
     !process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME ||
-    imageUploadInfo.bucket === "server"
+    info.bucket === "server"
   ) {
     bucketName = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME;
-    key = `assets/${imageUploadInfo.folder}/${imageUploadInfo.title}`.replace(
-      /\/\//g,
-      "/",
-    );
+    key = `assets/${info.folder}/${info.title}`.replace(/\/\//g, "/");
   } else {
     bucketName = process.env.NEXT_PUBLIC_AWS_S3_STORAGE_BUCKET_NAME;
-    key =
-      `images/assets/${imageUploadInfo.folder}/${imageUploadInfo.title}`.replace(
-        /\/\//g,
-        "/",
-      );
+    key = `images/assets/${info.folder}/${info.title}`.replace(/\/\//g, "/");
   }
 
   const uploadParams = {
     Bucket: bucketName,
     Key: key,
     Body: Buffer.from(await imageFile.arrayBuffer()),
-    ContentType: `image/${imageUploadInfo.format}`,
+    ContentType: `image/${info.format}`,
     CacheControl: "max-age=31536000",
   };
 
@@ -88,32 +80,4 @@ async function uploadImageToS3(
     imageName: key,
     imageUrl,
   };
-}
-
-function base64ToFile(base64String: string, fileName: string): File {
-  const [mimePart, dataPart] = base64String.split(",");
-
-  if (!mimePart || !dataPart) {
-    throw new Error("Invalid base64 string");
-  }
-
-  const mimeTypeMatch = /:(.*?);/.exec(mimePart);
-
-  if (!mimeTypeMatch?.[1]) {
-    throw new Error("Invalid MIME type");
-  }
-
-  const mimeType = mimeTypeMatch[1];
-
-  const byteCharacters = atob(dataPart);
-  const byteNumbers = new Array(byteCharacters.length);
-
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: mimeType });
-
-  return new File([blob], fileName, { type: mimeType });
 }
