@@ -54,10 +54,16 @@ async function modifyImage(
   imageFile: File,
   imageInfo: ImageInfo,
 ): Promise<ModifiedImage> {
-  const fileBuffer = await imageFile.arrayBuffer();
-
-  const raw = imageInfo.raw;
+  let fileBuffer: ArrayBuffer | string = await imageFile.arrayBuffer();
   const outputTitle = imageInfo.title;
+  const image = sharp(Buffer.from(fileBuffer), { animated: false });
+  const metadata = await image.metadata();
+  const raw = imageInfo.raw;
+
+  if (raw && metadata.format === "svg") {
+    fileBuffer = await imageFile.text();
+  }
+
   let outputWidth;
   let outputHeight;
   let outputFormat;
@@ -67,13 +73,10 @@ async function modifyImage(
 
   if (raw) {
     imageBuffer = fileBuffer;
-    outputHeight = imageInfo.height!;
-    outputWidth = imageInfo.width!;
-    outputFormat = imageInfo.format;
+    outputHeight = metadata.height!;
+    outputWidth = metadata.width!;
+    outputFormat = metadata.format!;
   } else {
-    const image = sharp(Buffer.from(fileBuffer), { animated: false });
-    const metadata = await image.metadata();
-
     if (!imageInfo.height && !imageInfo.width) {
       outputHeight = metadata.height;
       outputWidth = metadata.width;
@@ -111,12 +114,21 @@ async function modifyImage(
     outputFormat = modifiedInfo.format;
   }
 
-  const buffer = Buffer.from(imageBuffer).toString("base64");
+  let buffer, sizeKB, base64Format;
+  if (typeof imageBuffer === "string") {
+    sizeKB = imageBuffer.length / 1024;
+    buffer = btoa(imageBuffer);
+    base64Format = "data:image/svg+xml;base64,";
+  } else {
+    sizeKB = imageBuffer.byteLength / 1024;
+    buffer = Buffer.from(imageBuffer).toString("base64");
+    base64Format = `data:image/${outputFormat};base64,`;
+  }
 
   return {
     title: outputTitle,
-    previewUrl: `data:image/${outputFormat};base64,${buffer}`,
-    sizeKb: imageBuffer.byteLength / 1024,
+    previewUrl: `${base64Format}${buffer}`,
+    sizeKb: sizeKB,
     format: outputFormat,
     height: outputHeight,
     width: outputWidth,

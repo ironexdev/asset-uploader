@@ -28,7 +28,9 @@ interface ImageUploadFormProps {
 const ImageUploadForm = ({ image, onFormChange }: ImageUploadFormProps) => {
   const { control, watch } = useForm<UploadFormData>({
     defaultValues: {
-      title: (image.title || "").replace(/\.[^/.]+$/, `.${image.format}`),
+      title: image.raw
+        ? image.title || ""
+        : (image.title || "").replace(/\.[^/.]+$/, `.${image.format}`),
       bucket: image.raw ? "storage" : "server",
       folder: image.folder || "",
     },
