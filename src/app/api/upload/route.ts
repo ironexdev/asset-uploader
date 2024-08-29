@@ -74,7 +74,7 @@ async function uploadImageToS3(
 
   await s3Client.send(new PutObjectCommand(uploadParams));
 
-  const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${key}`;
+  const imageUrl = `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}/${key}`;
 
   return {
     imageName: key,

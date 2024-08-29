@@ -53,7 +53,7 @@ export async function GET(request: Request) {
           return {
             url:
               type === "server"
-                ? `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}.cloudfront.net/${item.Key}`
+                ? `https://${process.env.AWS_CLOUDFRONT_DISTRIBUTION}/${item.Key}`
                 : "",
             key: item.Key,
             sizeInKB,

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/asset-uploader.iml" filepath="$PROJECT_DIR$/.idea/asset-uploader.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/s3-image-manager.iml" filepath="$PROJECT_DIR$/.idea/s3-image-manager.iml" />
     </modules>
   </component>
 </project>
